@@ -1,10 +1,13 @@
 // dependencies
 var async = require('async');
 var AWS = require('aws-sdk');
+AWS.config.update({region:'us-east-1'});
 
 var util = require('util');
-var request = require('request');
 
+// Dynamodb access control.
+var date  = JSON.stringify(new Date());
+var docClient = new AWS.DynamoDB.DocumentClient({apiVersion: '2012-08-10'});
 
 // constants
 var MAX_WIDTH  = 100;
@@ -12,7 +15,8 @@ var MAX_HEIGHT = 100;
 
 // get reference to S3 client 
 var s3 = new AWS.S3();
- 
+var src, dest;
+
 function findcommon(input_data, relationship){
     if (input_data.length < 1)
         return null
@@ -45,22 +49,15 @@ exports.handler = function(event, context, callback) {
     // Object key may have spaces or unicode non-ASCII characters.
     var srcKey    =
     decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, " "));  
-    var dstBucket = srcBucket + "resized";
-    var dstKey    = "resized-" + srcKey;
+    var dstBucket = "ml-social";
+    var dstKey    = "res";
 
     // Sanity check: validate that source and destination are different buckets.
     if (srcBucket == dstBucket) {
         callback("Source and destination buckets are the same.");
         return;
     }
-    
-    // request('http://bnb.data.bl.uk/doc/resource/007446989.json', function (error, response, body) {
-    // if (!error && response.statusCode == 200) {
-    //     console.log(body) // Print the google web page.
-    //  }
-    // })
 
-    console.log("start waterfall");
     // Download the image from S3, transform, and upload to a different S3 bucket.
     async.waterfall([
         function download(next) {
@@ -74,42 +71,46 @@ exports.handler = function(event, context, callback) {
 
         function transform(response, next) {
             // Check the social networking flow.
-
-            console.log(response);
-            raw_data = JSON.parse(response)
-            console.log(raw_data)
-            res = findcommon(input_data, relationship)
-            next(null, res, null);
-            // gm(response.Body).size(function(err, size) {
-            //     // Infer the scaling factor to avoid stretching the image unnaturally.
-            //     var scalingFactor = Math.min(
-            //         MAX_WIDTH / size.width,
-            //         MAX_HEIGHT / size.height
-            //     );
-            //     var width  = scalingFactor * size.width;
-            //     var height = scalingFactor * size.height;
-
-            //     // Transform the image buffer in memory.
-            //     this.resize(width, height)
-            //         .toBuffer(imageType, function(err, buffer) {
-            //             if (err) {
-            //                 next(err);
-            //             } else {
-            //                 next(null, response.ContentType, buffer);
-            //             }
-            //         });
-            // });
-
+            
+            var raw_data = response.Body.toString('utf8')
+            console.log(raw_data);
+            var handler_data = raw_data.split(",");
+            src = JSON.stringify(handler_data);
+            var res = findcommon(handler_data, relationship);
+            res = JSON.stringify(Array.from(res).join(','));
+            console.log(res);
+            next(null, response.ContentType , res);
         },
+        
         function upload(contentType, data, next) {
             // Stream the transformed image to a different S3 bucket.
             s3.putObject({
                     Bucket: dstBucket,
-                    Key: dstKey,
+                    Key: "res.json",
                     Body: data,
                     ContentType: contentType
                 },
                 next);
+            
+            // Upload to dynamodb 
+            console.log(date);
+            var params = {
+                  TableName: 'social_networking',
+                  Item: {
+                    'time': date,
+                    'src': src,
+                    'dest': data
+                  }
+                };
+
+            docClient.put(params, function(err, data) {
+              if (err) {
+                console.log("Error", err);
+              } else {
+                console.log("Success", data);
+              }
+            });
+
             }
         ], function (err) {
             if (err) {
