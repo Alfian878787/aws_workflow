@@ -2,10 +2,6 @@
 <meta charset="utf-8">
 <style>
 
-/* .link {
-  stroke: #ccc;
-} */
-
 .link {
   stroke: #ccc;
   stroke-opacity: 0.6;
@@ -49,8 +45,6 @@ d3.json("./data/social.json", function(error, json) {
       .enter().append("line")
       .attr("class", "link")
       .attr("id", function(d){
-          console.log(d.source.name)
-          console.log(d.source.name + d.target.name)
           return d.source.name + d.target.name
           
       });
@@ -82,21 +76,44 @@ d3.json("./data/social.json", function(error, json) {
   
   });
 
-  setTimeout(function(){
-
-      target = d3.select("#Ted")
-      v = d3.select("#Mikey")
-      lop = d3.select("#TedMikey")
-      jolo = d3.select("#MikeyTed")
-      console.log(jolo[0][0] == null)
-
-      target.attr("fill", "red")
-      v.attr("fill", "red")
-      lop.attr("style", "stroke: red")
-    
-      console.log("5s")}, 3000)
+  setTimeout(animation, 5000)
   
 });
 
+
+function animation(input_line){
+    // Input_line: name for target on social networking.
+    // Ex: "Mikey,Ted"
+    input_line = "Mikey,Ted";
+    var names_list = input_line.split(',');
+    var commob_list = []
+    for(var i = 0; i< names_list.length; i++){
+        for(var j = 0; j < names_list.length; j++){
+            if (i != j)
+            commob_list.push(names_list[i] + names_list[j])
+        }
+    }
+    // Find all combination of the relationship. 
+    for(var i=0; i<commob_list.length; i++){
+        commob_list[i] = "#" + commob_list[i];
+    }
+
+    // Find all combination of the nodes.
+    for(var i=0; i<names_list.length; i++){
+        names_list[i] = "#" + names_list[i]
+    }
+
+    var nodes_name = names_list.join()
+    var links_name = commob_list.join()
+    console.log(nodes_name)
+    console.log(links_name)
+
+    svg_node = d3.selectAll(nodes_name)
+    svg_line = d3.selectAll(links_name)
+
+    svg_node.attr("fill", "blue")
+    svg_line.attr("style", "stroke: red")
+
+}
 
 </script>
