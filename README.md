@@ -1,7 +1,19 @@
 # Workflow for face-detection social network
+Video-process -> S3 -> lambda -> Google ML -> S3 -> lambda(Social-Graph) -> Dynamo <br>
 
- -> Front-End -> Image-Process -> ML-model -> Social-Graph -> Res <br>
-                  (serverless)      (-)       (serverless)    
+Cloud infrastructure list:
+    AWS S3
+    AWS lambda
+    AWS dynamo
+    Google ML engine
 
-The intermidiate file storage is implemented on aws S3. Query log storage is implemented on dynamodb.
+Todos:
+1. Front-end API design (X)
+2. Distributed ML Engine
+3. End-to-end test 
+4. Demo page - d3 social networking graph
+5. Load Test
 
+Notes:
+1. Video-processing happens in front-end sensor
+2. No Final back-end requirement.
