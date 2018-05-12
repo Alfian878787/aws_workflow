@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.link {
+  stroke: #ccc;
+  stroke-opacity: 0.6;
+}
+
+
+.node text {
+  pointer-events: none;
+  font: 10px sans-serif;
+}
+
+/* table, th, td {
+    border: 1px solid black;
+} */
+
+table {
+  margin: 30px;
+}
+
+th, td {
+  border: 1px solid;
+  border-color: #55444C;
+  text-align: center;
+  padding: 10px;
+  width: 10%;
+  font-family: Ubuntu;
+  font-size: 16pt;
+}
+
+</style>
+<!-- d3 library to vistualized social networking staff -->
+<script src="//d3js.org/d3.v3.min.js"></script>
+<body>
+<!-- Add table on the right side -->
+<!-- This function call API to render requests. -->
+<h2 style="text-align: center">
+    Social Networking Client
+</h2>
+
+<div style="position:relative">
+        <div id = "leftSlider" style="float:left; width: 60%; height:100px;">
+        </div>
+
+        <div id = "rightSlider" style="float:left; width: 35%; height:100px;">
+            <!-- <p>Request table content</p> -->
+            <table> 
+                <tr>
+                    <th>
+                    Reuqest source
+                    </th>
+                    <th>
+                    Request destination
+                     </th>
+                     <th>
+                    Timestamp
+                    </th>
+                </tr>
+                <tbody id = "Http">
+                    
+                </tbody>
+            </table>
+        </div>
+</div>
+
+
+<script>
+    function appendRequest(jsonRequest, elem){
+        // Sorted by timestamp
+        
+        jsonRequest["Items"].sort(function(a, b){
+            console.log(a["date"]["S"])
+            var testDate1 = new Date(a["date"]["S"])
+            var testDate2 = new Date(b["date"]["S"])
+            return testDate1 - testDate2
+        })
+
+        lastIndex = jsonRequest["Count"];
+        lastItem = jsonRequest["Items"][lastIndex-1]
+        animation(lastItem["source"]["S"], lastItem["destination"]["S"]);
+        
+        res = "";
+        for(var i=0; i<jsonRequest["Count"]; i++){
+            res += "<tr>";
+            res += "<td>" + jsonRequest["Items"][i]["source"]["S"] + "</td>";
+            res += "<td>" + jsonRequest["Items"][i]["destination"]["S"] + "</td>";
+            res += "<td>" + jsonRequest["Items"][i]["date"]["S"] + "</td>";
+            res += "</tr>";
+        }
+        // console.log(res);
+        elem.innerHTML = res;
+        return res;
+    }
+
+    // Right table side
+    var elem = document.getElementById("Http");
+
+    function apiRequest(elem){
+
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+        var myObj = JSON.parse(JSON.parse(this.responseText));
+        // console.log(typeof(JSON.parse(myObj)));
+        appendRequest(myObj, elem);
+        }
+    };
+
+        // Use cors.io to request the cross demain access.
+        xmlhttp.open("GET", "https://cors.io/?https://7d02gxnc5b.execute-api.us-east-1.amazonaws.com/ResDynamo/", true);
+        xmlhttp.send();
+    }
+
+    
+    // setTimeout(function(){ 
+    //     apiRequest(elem);
+    //     console.log("refresh"); }, 1000);
+
+    var intervalID = setInterval(function(){
+        
+        // console.log("refresh");
+        apiRequest(elem)}, 200);
+</script>
+
+<script>
+    // Left table side
+var width = 960,
+    height = 640
+
+var svg = d3.select("#leftSlider").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+var force = d3.layout.force()
+    .gravity(0.5)
+    .distance(300)
+    .charge(-100)
+    .size([width, height]);
+
+
+d3.json("./data/seed.json", function(error, json) {
+  if (error) throw error;
+    // console.log(json.nodes)
+  force
+      .nodes(json.nodes)
+      .links(json.links)
+      .start();
+
+  var link = svg.selectAll(".link")
+      .data(json.links)
+      .enter().append("line")
+      .attr("class", "link")
+      .attr("id", function(d){
+          return d.source.name + d.target.name
+          
+      });
+
+  var node = svg.selectAll(".node")
+      .data(json.nodes)
+      .enter().append("g")
+      .attr("class", "node")
+      .attr("fill", "#2B98D3")
+      .attr("id", function(d) {return d.name})
+      .call(force.drag);
+  
+  node.append("circle")
+      .attr("cx", -1)
+      .attr("cy", -1)
+      .attr("r", 10)
+
+  node.append("text")
+      .attr("dx", 12)
+      .attr("dy", ".35em")
+      .text(function(d) { return d.name });
+
+  force.on("tick", function() {
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+    node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+  
+  });
+  
+});
+
+function animation(src, dst){
+
+    // Refresh old to generate animation
+    var node = svg.selectAll(".node")
+    .attr("fill", "#2B98D3");
+
+    // Links
+    var link = svg.selectAll(".link")
+    .attr("style", "stroke: #ccc");
+
+    var all = src + ',' +dst;
+
+    var names_list = all.split(',');
+    var commob_list = []
+
+    var src_list = src.split(',');
+    var dst_list = dst.split(',')
+
+    for(var i = 0; i< src_list.length; i++){
+        for(var j = 0; j < dst_list.length; j++){
+            commob_list.push(src_list[i] + dst_list[j])
+            commob_list.push(dst_list[j] + src_list[i])
+        }
+    }
+
+    // Find all combination of the relationship. 
+    for(var i=0; i<commob_list.length; i++){
+        commob_list[i] = "#" + commob_list[i];
+    }
+
+    // Find all combination of the nodes.
+    for(var i=0; i<names_list.length; i++){
+        names_list[i] = "#" + names_list[i]
+    }
+
+    var nodes_name = names_list.join()
+    var links_name = commob_list.join()
+
+    svg_node = d3.selectAll(nodes_name)
+    svg_line = d3.selectAll(links_name)
+
+    svg_node.attr("fill", "blue")
+    svg_line.attr("style", "stroke: red")
+}
+
+</script>
+</body>
+</html>
